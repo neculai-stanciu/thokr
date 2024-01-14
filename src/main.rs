@@ -4,7 +4,7 @@ mod ui;
 mod util;
 
 use crate::{lang::Language, thok::Thok};
-use clap::{ArgEnum, ErrorKind, IntoApp, Parser};
+use clap::{Parser, ValueEnum, CommandFactory, error::ErrorKind};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
@@ -18,7 +18,7 @@ use std::{
     thread,
     time::Duration,
 };
-use tui::{
+use ratatui::{
     backend::{Backend, CrosstermBackend},
     Frame, Terminal,
 };
@@ -31,7 +31,7 @@ const TICK_RATE_MS: u64 = 100;
 #[clap(version, about, long_about= None)]
 pub struct Cli {
     /// number of words to use in test
-    #[clap(short = 'w', long, default_value_t = 15)]
+    #[arg(short = 'w', long, default_value_t = 15)]
     number_of_words: usize,
 
     /// number of sentences to use in test
@@ -39,19 +39,19 @@ pub struct Cli {
     number_of_sentences: Option<usize>,
 
     /// number of seconds to run test
-    #[clap(short = 's', long)]
+    #[arg(short = 's', long)]
     number_of_secs: Option<usize>,
 
     /// custom prompt to use
-    #[clap(short = 'p', long)]
+    #[arg(short = 'p', long)]
     prompt: Option<String>,
 
     /// language to pull words from
-    #[clap(short = 'l', long, arg_enum, default_value_t = SupportedLanguage::English)]
+    #[arg(short = 'l', long, value_enum, default_value_t = SupportedLanguage::English)]
     supported_language: SupportedLanguage,
 }
 
-#[derive(Debug, Copy, Clone, ArgEnum, strum_macros::Display)]
+#[derive(Debug, Copy, Clone, ValueEnum, strum_macros::Display)]
 enum SupportedLanguage {
     English,
     English1k,
@@ -176,7 +176,7 @@ fn start_tui<B: Backend>(
 
     loop {
         let mut exit_type: ExitType = ExitType::Quit;
-        terminal.draw(|f| ui(app, f))?;
+        terminal.draw(|f| ui::<B>(app, f))?;
 
         loop {
             let app = &mut app;
@@ -189,11 +189,11 @@ fn start_tui<B: Backend>(
                         if app.thok.has_finished() {
                             app.thok.calc_results();
                         }
-                        terminal.draw(|f| ui(app, f))?;
+                        terminal.draw(|f| ui::<B>(app, f))?;
                     }
                 }
                 ThokEvent::Resize => {
-                    terminal.draw(|f| ui(app, f))?;
+                    terminal.draw(|f| ui::<B>(app, f))?;
                 }
                 ThokEvent::Key(key) => {
                     match key.code {
@@ -249,7 +249,7 @@ fn start_tui<B: Backend>(
                         }
                         _ => {}
                     }
-                    terminal.draw(|f| ui(app, f))?;
+                    terminal.draw(|f| ui::<B>(app, f))?;
                 }
             }
         }
@@ -306,6 +306,6 @@ fn get_thok_events(should_tick: bool) -> mpsc::Receiver<ThokEvent> {
     rx
 }
 
-fn ui<B: Backend>(app: &mut App, f: &mut Frame<B>) {
+fn ui<B: Backend>(app: &mut App, f: &mut Frame) {
     f.render_widget(&app.thok, f.size());
 }
